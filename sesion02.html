@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sesión 02: Gestión en GitHub Web y Nodos Dinámicos en Heap | Lenguajes y Autómatas II</title>
+  <style>
+    :root {
+      --bg: #f4f8fb;
+      --card-bg: rgba(255, 255, 255, 0.88);
+      --card-bg-hover: rgba(255, 255, 255, 0.98);
+      --border: #d0dbe5;
+      --border-focus: #0969da;
+      --accent: #0969da;
+      --accent-green: #1a7f37;
+      --accent-silver: #627282;
+      --accent-orange: #d29922;
+      --text: #334155;
+      --text-bright: #0f172a;
+      --font-mono: 'Fira Code', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 12px 28px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand { font-weight: 700; color: var(--text-bright); font-size: 0.95rem; }
+    .tag {
+      background-color: #ddf4ff;
+      color: var(--accent);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      border: 1px solid #b6e3ff;
+    }
+    main { flex: 1; display: flex; position: relative; overflow: hidden; }
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: 26px 56px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(30px);
+      transition: all 0.3s ease;
+      overflow-y: auto;
+    }
+    .slide.active { opacity: 1; visibility: visible; transform: translateX(0); }
+    h1 { font-size: 2rem; color: var(--text-bright); margin-bottom: 10px; }
+    h2 { font-size: 1.45rem; color: var(--text-bright); margin-bottom: 14px; }
+    p.lead { font-size: 1.02rem; line-height: 1.5; max-width: 1000px; margin-bottom: 16px; color: #475569; }
+    .pregunta {
+      font-size: 1.2rem;
+      line-height: 1.45;
+      color: var(--text-bright);
+      font-weight: 600;
+      border-left: 4px solid var(--accent);
+      padding: 8px 0 8px 16px;
+      margin-bottom: 18px;
+      max-width: 980px;
+    }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .grid-lab { display: grid; grid-template-columns: 0.82fr 1.18fr; gap: 16px; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .card:hover { background: var(--card-bg-hover); border-color: var(--border-focus); transform: translateY(-2px); }
+    .card.static { cursor: default; }
+    .card.static:hover { background: var(--card-bg); border-color: var(--border); transform: none; }
+    .card.expanded { border-color: var(--accent); background: #ffffff; }
+    .card-header { font-weight: 600; color: var(--text-bright); margin-bottom: 8px; display: flex; justify-content: space-between; }
+    .expand-hint { font-size: 0.75rem; color: var(--accent); font-family: var(--font-mono); }
+    .card p, .card li { font-size: 0.86rem; line-height: 1.45; color: var(--text); }
+    .card ul { padding-left: 18px; }
+    .card li { margin-bottom: 4px; }
+    .card-details { max-height: 0; overflow: hidden; opacity: 0; transition: all 0.3s ease; font-size: 0.8rem; color: #475569; }
+    .card.expanded .card-details { max-height: 260px; opacity: 1; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+    .analogia {
+      margin-top: 10px;
+      padding-left: 10px;
+      border-left: 3px solid var(--accent-orange);
+      font-size: 0.82rem !important;
+      color: #475569 !important;
+    }
+    .interactive-box {
+      margin-top: 16px;
+      padding: 13px 18px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 6px;
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+    .interactive-box code, .card code, li code, p code {
+      background: #eef2f7;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.86em;
+    }
+    .timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 4px; }
+    .tl-item { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: #ffffff; }
+    .tl-item.current { border-color: var(--accent); box-shadow: 0 0 0 2px #ddf4ff; }
+    .tl-item.done { opacity: 0.6; }
+    .tl-unit { font-size: 0.68rem; font-family: var(--font-mono); color: var(--accent-silver); }
+    .tl-title { font-size: 0.8rem; font-weight: 600; color: var(--text-bright); margin: 3px 0; line-height: 1.25; }
+    .tl-hito { font-size: 0.68rem; color: var(--accent-orange); font-family: var(--font-mono); }
+    .terminal { align-self: start; background: #0d1117; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; }
+    .terminal-bar { background: #161b22; color: #8b949e; font-family: var(--font-mono); font-size: 0.68rem; padding: 6px 12px; border-bottom: 1px solid #30363d; }
+    .terminal pre { margin: 0; padding: 12px 14px; color: #7ee787; font-family: var(--font-mono); font-size: 0.62rem; line-height: 1.45; white-space: pre; overflow-x: auto; }
+    footer {
+      padding: 12px 28px;
+      background: rgba(255, 255, 255, 0.85);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .progress { font-size: 0.85rem; font-family: var(--font-mono); color: var(--accent); font-weight: 600; }
+    .controls { display: flex; gap: 10px; }
+    button {
+      background: #ffffff;
+      color: var(--text-bright);
+      border: 1px solid var(--border);
+      padding: 7px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: #f1f5f9; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">TecNM Cancún &bull; SCD-1016</div>
+    <div class="tag">SESIÓN 02 / 40 &bull; Gestión en GitHub Web y Nodos Dinámicos en Heap</div>
+  </header>
+
+  <main>
+    <!-- Lámina 1: de qué trata la sesión -->
+    <section class="slide active">
+      <div class="tag" style="width: fit-content; margin-bottom: 10px;">UNIDAD 1: ANÁLISIS SEMÁNTICO Y AST</div>
+      <h1>Gestión en GitHub Web y Nodos Dinámicos en Heap</h1>
+      <p class="pregunta">¿Cómo guarda un compilador una cantidad de datos que no conoce de antemano?</p>
+      <div class="grid-2">
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">Objetivo de hoy</span></div>
+          <p>Construir una lista enlazada de tokens en el heap, reservando y liberando memoria nodo por nodo sin fugas ni accesos a memoria liberada.</p>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent-green);">Al terminar tendrás</span></div>
+          <p>Una lista enlazada de tokens que crece token por token, se cuenta, se recorre y se libera sin fugas.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lámina 2: conceptos básicos antes de los tecnicismos -->
+    <section class="slide">
+      <h2>Antes de los tecnicismos: los conceptos básicos</h2>
+      <p class="lead">Si te quedas con estas ideas, el resto de la sesión se entiende solo.</p>
+      <div class="grid-2">
+        
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">01. Heap</span></div>
+          <p>La zona de memoria donde el programa pide espacio en tiempo de ejecución y decide cuándo devolverlo.</p>
+          <p class="analogia"><strong>Analogía:</strong> Como una bodega que rentas por caja: nadie la limpia por ti cuando te vas.</p>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">02. Nodo enlazado</span></div>
+          <p>Una estructura con dos partes: el dato que guarda y la dirección del siguiente nodo.</p>
+          <p class="analogia"><strong>Analogía:</strong> Como una cadena de pistas: cada tarjeta trae una pista y la ubicación de la siguiente.</p>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">03. Fuga de memoria</span></div>
+          <p>Reservar memoria y perder la única dirección que permitía liberarla.</p>
+          <p class="analogia"><strong>Analogía:</strong> Como dejar cajas en la bodega sin el recibo: ya no puedes recogerlas, pero siguen ocupando lugar.</p>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">04. Use-after-free</span></div>
+          <p>Seguir usando un nodo después de liberarlo: el contenido ya no es tuyo y puede cambiar sin aviso.</p>
+          <p class="analogia"><strong>Analogía:</strong> Como usar el boleto de un vuelo que ya despegó: ese asiento ya es de otra persona.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lámina 3: mapa del curso -->
+    <section class="slide">
+      <h2>¿Dónde estamos y a dónde vamos?</h2>
+      <p class="lead">El compilador no sabe cuántos tokens tendrá el programa hasta que lo lee: no puede usar un arreglo fijo. Crea un nodo por token y los encadena. Si olvida liberarlos, el proceso crece hasta agotar la memoria; si libera y sigue usando, el programa se corrompe.</p>
+      <div class="timeline">
+        
+        <div class="tl-item current">
+          <div class="tl-unit">Sesiones 01–10</div>
+          <div class="tl-title">Unidad 1: Análisis Semántico y AST</div>
+          <div class="tl-hito">Aquí estás</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-unit">Sesiones 11–20</div>
+          <div class="tl-title">Unidad 2: Tabla de Símbolos y Ámbitos</div>
+          <div class="tl-hito">Hito 2 · Sesión 20</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-unit">Sesiones 21–30</div>
+          <div class="tl-title">Unidad 3: Código Intermedio y Optimización</div>
+          <div class="tl-hito">Hito 3 · Sesión 30</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-unit">Sesiones 31–40</div>
+          <div class="tl-title">Unidad 4: Código Objeto y Backend</div>
+          <div class="tl-hito">Hito 4 · Sesión 40</div>
+        </div>
+      </div>
+      <div class="interactive-box">
+        <strong>Hoy:</strong> Una lista enlazada de tokens que crece token por token, se cuenta, se recorre y se libera sin fugas.
+        <br><strong>Siguiente:</strong> Google Colab, Mágicos y Flujo de Entrega (sesión 03)
+      </div>
+    </section>
+
+    <!-- Lámina 4: fundamentos teóricos -->
+    <section class="slide">
+      <h2>00–20 min: Fundamentos teóricos — Estructuras Dinámicas para Tokens y Símbolos</h2>
+      <p class="lead">El compilador no conoce a priori el tamaño del programa. Cada token o nodo debe instanciarse dinámicamente en el Heap.</p>
+      <div class="grid-3">
+        
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent);">01. Asignación Dinámica</span><span class="expand-hint">[+]</span></div>
+          <p><code>malloc(sizeof(Token))</code> reserva memoria contigua en el Heap y devuelve un puntero genérico <code>void*</code>.</p>
+          <div class="card-details">El sistema operativo marca el bloque como ocupado en la tabla de páginas.</div>
+        </div>
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent);">02. Tiempo de Vida (Lifetime)</span><span class="expand-hint">[+]</span></div>
+          <p>A diferencia del Stack (que se limpia al salir de la función), la memoria en Heap persiste hasta invocar <code>free()</code>.</p>
+          <div class="card-details">Olvidar liberar memoria genera *Memory Leaks* que saturan la compilación de programas extensos.</div>
+        </div>
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent);">03. Enlazamiento Simple</span><span class="expand-hint">[+]</span></div>
+          <p>Cada nodo contiene su carga útil (lexema, tipo) y un puntero autoreferenciado <code>struct Token *siguiente</code>.</p>
+          <div class="card-details">Permite construir flujos de tokens de longitud arbitraria O(n).</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lámina 5: arquitectura de memoria -->
+    <section class="slide">
+      <h2>Arquitectura de memoria y estructuras de datos: El Ciclo de Liberación Segura</h2>
+      <p class="lead">Prevención del fallo crítico *Use-After-Free*:</p>
+      <div class="grid-2">
+        
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent-silver);">Puntero Auxiliar Temporal</span><span class="expand-hint">[+]</span></div>
+          <p>Antes de ejecutar <code>free(actual)</code>, es indispensable respaldar <code>actual-&gt;siguiente</code> en una variable temporal.</p>
+          <div class="card-details">Acceder a <code>actual-&gt;siguiente</code> después de liberar <code>actual</code> es comportamiento indefinido (UB).</div>
+        </div>
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent-silver);">Modelo RAII en Rust</span><span class="expand-hint">[+]</span></div>
+          <p><code>Box&lt;Token&gt;</code> transfiere la propiedad; cuando el nodo sale de ámbito, Rust invoca <code>drop()</code> automáticamente.</p>
+          <div class="card-details">Elimina por completo fugas de memoria y punteros colgantes en tiempo de compilación.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lámina 6: casos borde -->
+    <section class="slide">
+      <h2>Antipatrones en la Gestión de Nodos</h2>
+      <p class="lead">Puntos críticos de falla que debes proteger en tu código y auditar en las respuestas del LLM:</p>
+      <div class="card static" style="padding: 22px;">
+        <ul style="padding-left: 20px; line-height: 1.9;">
+          <li>Desbordamiento en copia de lexema: Usar <code>strcpy</code> en lugar de <code>strncpy</code> provocando buffer overflow.</li><li>Fallo de asignación: No verificar si <code>malloc</code> retornó <code>NULL</code> por agotamiento de memoria del sistema.</li><li>Liberación de lista vacía: No proteger la función de liberación cuando la cabeza de la lista es <code>NULL</code>.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Lámina 7: lo que vas a construir hoy -->
+    <section class="slide">
+      <h2>Lo que vas a construir hoy</h2>
+      <p class="lead">Recibes lexemas como texto y debes encadenarlos en el heap. El harness crea una lista con varios tokens, comprueba el orden, el final de la cadena y que la liberación no reviente.</p>
+      <div class="grid-lab">
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">Entregable</span></div>
+          <p style="margin-bottom: 10px;">tu lista enlazada en artesano_sesion02_c.c, el harness en verde y la bitácora de la sesión</p>
+          <div class="card-header" style="margin-top: 6px;"><span style="color: var(--accent-silver);">Reglas del reto</span></div>
+          <ul><li>Cada nodo se reserva con malloc; nada de arreglos globales.</li><li>El campo siguiente del último nodo debe valer NULL.</li><li>liberar_lista(NULL) no debe caerse.</li></ul>
+          <div class="card-header" style="margin-top: 8px;"><span style="color: var(--accent-green);">Se acepta cuando</span></div>
+          <ul><li>Cada token ocupa un nodo reservado con malloc y encadenado con siguiente.</li><li>contar_tokens(NULL) devuelve 0 y liberar_lista(NULL) no se cae.</li><li>Los seis casos del harness salen OK con código de salida 0.</li></ul>
+        </div>
+        <div class="terminal">
+          <div class="terminal-bar">salida esperada del harness — sesión 02</div>
+          <pre>=== AUDITORIA SESION 02 - Lista enlazada de tokens en heap ===
+Caso                               esperado:              obtenido:              resultado
+[ 1] crear_nodo("if")-&gt;lexema           esperado: if           obtenido: if           OK
+[ 2] contar_tokens(3 tokens)            esperado: 3            obtenido: 3            OK
+[ 3] orden: segundo token               esperado: dos          obtenido: dos          OK
+[ 4] ultimo-&gt;siguiente == NULL          esperado: 1            obtenido: 1            OK
+[ 5] contar_tokens(NULL)                esperado: 0            obtenido: 0            OK
+[ 6] liberar_lista(NULL)                esperado: sin crash    obtenido: sin crash    OK
+
+RESULTADO: 6/6 pruebas superadas
+TODO EN VERDE. Documenta tu auditoria en auditorias/auditoria_sesion02.md</pre>
+        </div>
+      </div>
+      <div class="interactive-box">
+        <strong>Mientras no implementes, esta salida será roja:</strong> el harness imprime <code>FALLA</code> en cada caso pendiente y termina con código de salida 1. No hay «verde» gratis.
+      </div>
+    </section>
+
+    <!-- Lámina 8: dinámica y entrega -->
+    <section class="slide">
+      <h2>Dinámica de la clase y protocolo de entrega</h2>
+      <div class="grid-2">
+        <div class="card static">
+          <div class="card-header"><span>Estructura de la clase (60 min)</span></div>
+          <ul>
+            <li><strong>00–20 min:</strong> Conceptos, teoría e invariantes.</li>
+            <li><strong>20–35 min:</strong> Fase 1: El Artesano (código manual, sin IA).</li>
+            <li><strong>35–45 min:</strong> Fase 2: El Científico (prompt C-R-E-O).</li>
+            <li><strong>45–55 min:</strong> Fase 3: El Auditor (harness en verde).</li>
+            <li><strong>55–60 min:</strong> Sincronización y commit en GitHub.</li>
+          </ul>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span>Evidencia evaluada</span></div>
+          <p>Tu archivo <code>auditorias/auditoria_sesion02.md</code> debe contener la matriz C-R-E-O y el reporte crítico.</p>
+          <p style="margin-top: 8px;">Adjunta también la salida del harness: es la prueba de que tu implementación pasó los 6 casos.</p>
+          <div class="card-details" style="max-height: none; opacity: 1; border-top: none; margin-top: 10px; padding-top: 0;">
+            Cada entrega diaria acumula para el 40% de laboratorios y alimenta tu Proyecto Integrador.
+          </div>
+        </div>
+      </div>
+      <div class="interactive-box">
+        <strong>Docente Titular:</strong> MCC. Iván Márquez Larios (<code>ijmarquezl</code>) &bull; TecNM Cancún
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="progress" id="slideIndicator">SLIDE 1 / 8</div>
+    <div class="controls">
+      <button id="prevBtn" onclick="prevSlide()" disabled>&larr; Anterior</button>
+      <button id="nextBtn" onclick="nextSlide()">Siguiente &rarr;</button>
+    </div>
+  </footer>
+
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const indicator = document.getElementById('slideIndicator');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    function updateSlides() {
+      slides.forEach((slide, index) => slide.classList.toggle('active', index === currentSlide));
+      indicator.textContent = `SLIDE ${currentSlide + 1} / ${slides.length}`;
+      prevBtn.disabled = currentSlide === 0;
+      nextBtn.disabled = currentSlide === slides.length - 1;
+    }
+    function nextSlide() { if (currentSlide < slides.length - 1) { currentSlide++; updateSlides(); } }
+    function prevSlide() { if (currentSlide > 0) { currentSlide--; updateSlides(); } }
+    function toggleCard(card) {
+      if (card.classList.contains('static')) return;
+      card.classList.toggle('expanded');
+      const hint = card.querySelector('.expand-hint');
+      if (hint) hint.textContent = card.classList.contains('expanded') ? '[-]' : '[+]';
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+      if (e.key === 'ArrowLeft') prevSlide();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sesión 37: Integración del Pipeline Completo del Compilador | Lenguajes y Autómatas II</title>
+  <style>
+    :root {
+      --bg: #f4f8fb;
+      --card-bg: rgba(255, 255, 255, 0.88);
+      --card-bg-hover: rgba(255, 255, 255, 0.98);
+      --border: #d0dbe5;
+      --border-focus: #0969da;
+      --accent: #0969da;
+      --accent-green: #1a7f37;
+      --accent-silver: #627282;
+      --accent-orange: #d29922;
+      --text: #334155;
+      --text-bright: #0f172a;
+      --font-mono: 'Fira Code', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 12px 28px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand { font-weight: 700; color: var(--text-bright); font-size: 0.95rem; }
+    .tag {
+      background-color: #ddf4ff;
+      color: var(--accent);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      border: 1px solid #b6e3ff;
+    }
+    main { flex: 1; display: flex; position: relative; overflow: hidden; }
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: 26px 56px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(30px);
+      transition: all 0.3s ease;
+      overflow-y: auto;
+    }
+    .slide.active { opacity: 1; visibility: visible; transform: translateX(0); }
+    h1 { font-size: 2rem; color: var(--text-bright); margin-bottom: 10px; }
+    h2 { font-size: 1.45rem; color: var(--text-bright); margin-bottom: 14px; }
+    p.lead { font-size: 1.02rem; line-height: 1.5; max-width: 1000px; margin-bottom: 16px; color: #475569; }
+    .pregunta {
+      font-size: 1.2rem;
+      line-height: 1.45;
+      color: var(--text-bright);
+      font-weight: 600;
+      border-left: 4px solid var(--accent);
+      padding: 8px 0 8px 16px;
+      margin-bottom: 18px;
+      max-width: 980px;
+    }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .grid-lab { display: grid; grid-template-columns: 0.82fr 1.18fr; gap: 16px; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .card:hover { background: var(--card-bg-hover); border-color: var(--border-focus); transform: translateY(-2px); }
+    .card.static { cursor: default; }
+    .card.static:hover { background: var(--card-bg); border-color: var(--border); transform: none; }
+    .card.expanded { border-color: var(--accent); background: #ffffff; }
+    .card-header { font-weight: 600; color: var(--text-bright); margin-bottom: 8px; display: flex; justify-content: space-between; }
+    .expand-hint { font-size: 0.75rem; color: var(--accent); font-family: var(--font-mono); }
+    .card p, .card li { font-size: 0.86rem; line-height: 1.45; color: var(--text); }
+    .card ul { padding-left: 18px; }
+    .card li { margin-bottom: 4px; }
+    .card-details { max-height: 0; overflow: hidden; opacity: 0; transition: all 0.3s ease; font-size: 0.8rem; color: #475569; }
+    .card.expanded .card-details { max-height: 260px; opacity: 1; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+    .analogia {
+      margin-top: 10px;
+      padding-left: 10px;
+      border-left: 3px solid var(--accent-orange);
+      font-size: 0.82rem !important;
+      color: #475569 !important;
+    }
+    .interactive-box {
+      margin-top: 16px;
+      padding: 13px 18px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 6px;
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+    .interactive-box code, .card code, li code, p code {
+      background: #eef2f7;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.86em;
+    }
+    .timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 4px; }
+    .tl-item { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: #ffffff; }
+    .tl-item.current { border-color: var(--accent); box-shadow: 0 0 0 2px #ddf4ff; }
+    .tl-item.done { opacity: 0.6; }
+    .tl-unit { font-size: 0.68rem; font-family: var(--font-mono); color: var(--accent-silver); }
+    .tl-title { font-size: 0.8rem; font-weight: 600; color: var(--text-bright); margin: 3px 0; line-height: 1.25; }
+    .tl-hito { font-size: 0.68rem; color: var(--accent-orange); font-family: var(--font-mono); }
+    .terminal { align-self: start; background: #0d1117; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; }
+    .terminal-bar { background: #161b22; color: #8b949e; font-family: var(--font-mono); font-size: 0.68rem; padding: 6px 12px; border-bottom: 1px solid #30363d; }
+    .terminal pre { margin: 0; padding: 12px 14px; color: #7ee787; font-family: var(--font-mono); font-size: 0.62rem; line-height: 1.45; white-space: pre; overflow-x: auto; }
+    footer {
+      padding: 12px 28px;
+      background: rgba(255, 255, 255, 0.85);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .progress { font-size: 0.85rem; font-family: var(--font-mono); color: var(--accent); font-weight: 600; }
+    .controls { display: flex; gap: 10px; }
+    button {
+      background: #ffffff;
+      color: var(--text-bright);
+      border: 1px solid var(--border);
+      padding: 7px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: #f1f5f9; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">TecNM Cancún &bull; SCD-1016</div>
+    <div class="tag">SESIÓN 37 / 40 &bull; Integración del Pipeline Completo del Compilador</div>
+  </header>
+
+  <main>
+    <!-- Lámina 1: de qué trata la sesión -->
+    <section class="slide active">
+      <div class="tag" style="width: fit-content; margin-bottom: 10px;">UNIDAD 4: CÓDIGO OBJETO Y BACKEND</div>
+      <h1>Integración del Pipeline Completo del Compilador</h1>
+      <p class="pregunta">¿Cómo se pasa de una expresión en el código fuente a un archivo .s que el ensamblador acepta?</p>
+      <div class="grid-2">
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">Objetivo de hoy</span></div>
+          <p>Emitir un archivo ensamblador mínimo pero completo: secciones, símbolo global, prólogo, cuerpo y epílogo, respetando el contrato que espera as.</p>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent-green);">Al terminar tendrás</span></div>
+          <p>Una función que emite un archivo .s mínimo válido y comprobable, con símbolo global, prólogo, cuerpo y epílogo.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lámina 2: conceptos básicos antes de los tecnicismos -->
+    <section class="slide">
+      <h2>Antes de los tecnicismos: los conceptos básicos</h2>
+      <p class="lead">Si te quedas con estas ideas, el resto de la sesión se entiende solo.</p>
+      <div class="grid-2">
+        
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">01. Directiva</span></div>
+          <p>Una línea del archivo .s que empieza con punto y le da una orden al ensamblador, no a la CPU.</p>
+          <p class="analogia"><strong>Analogía:</strong> Como las notas al margen de una receta: no son ingredientes, son instrucciones para el cocinero.</p>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">02. .globl</span></div>
+          <p>La directiva que exporta un símbolo para que el enlazador pueda verlo desde otros archivos.</p>
+          <p class="analogia"><strong>Analogía:</strong> Como poner el nombre en la puerta de la oficina: sin él, nadie sabe que existes.</p>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">03. Etiqueta</span></div>
+          <p>Un nombre seguido de dos puntos que marca una dirección dentro del código para que un salto o call pueda referirse a ella.</p>
+          <p class="analogia"><strong>Analogía:</strong> Como el número de una casa en una calle: sirve para que el cartero llegue sin conocer el plano.</p>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">04. Sección .text</span></div>
+          <p>La región del archivo donde viven las instrucciones ejecutables.</p>
+          <p class="analogia"><strong>Analogía:</strong> Como el escenario de un teatro: allí ocurre la obra; el vestuario va en otra sección.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lámina 3: mapa del curso -->
+    <section class="slide">
+      <h2>¿Dónde estamos y a dónde vamos?</h2>
+      <p class="lead">Hasta ahora cada pase funcionaba por separado. El valor de un compilador aparece cuando encadena todos y produce un texto que gcc puede ensamblar sin intervención manual. Un .globl olvidado o una etiqueta mal formada hacen que el enlace falle aunque el cálculo sea correcto.</p>
+      <div class="timeline">
+        
+        <div class="tl-item done">
+          <div class="tl-unit">Sesiones 01–10</div>
+          <div class="tl-title">Unidad 1: Análisis Semántico y AST</div>
+          <div class="tl-hito">Hito 1 · Sesión 10</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-unit">Sesiones 11–20</div>
+          <div class="tl-title">Unidad 2: Tabla de Símbolos y Ámbitos</div>
+          <div class="tl-hito">Hito 2 · Sesión 20</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-unit">Sesiones 21–30</div>
+          <div class="tl-title">Unidad 3: Código Intermedio y Optimización</div>
+          <div class="tl-hito">Hito 3 · Sesión 30</div>
+        </div>
+        <div class="tl-item current">
+          <div class="tl-unit">Sesiones 31–40</div>
+          <div class="tl-title">Unidad 4: Código Objeto y Backend</div>
+          <div class="tl-hito">Aquí estás</div>
+        </div>
+      </div>
+      <div class="interactive-box">
+        <strong>Hoy:</strong> Una función que emite un archivo .s mínimo válido y comprobable, con símbolo global, prólogo, cuerpo y epílogo.
+        <br><strong>Siguiente:</strong> Enlace (Linking) y Creación de Binarios Ejecutables ELF (sesión 38)
+      </div>
+    </section>
+
+    <!-- Lámina 4: fundamentos teóricos -->
+    <section class="slide">
+      <h2>00–20 min: Fundamentos teóricos — Conexión Integral: Del Código Fuente al Archivo Ensamblador</h2>
+      <p class="lead">Integración modular de todas las etapas: Scanner -&gt; Parser -&gt; AST -&gt; Semántico -&gt; TAC -&gt; Optimizador -&gt; Emisor ASM.</p>
+      <div class="grid-3">
+        
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent);">01. Arquitectura en Pases (Multi-Pass Compiler)</span><span class="expand-hint">[+]</span></div>
+          <p>Cada pase consume la estructura de datos del pase anterior y produce una representación más cercana al hardware.</p>
+          <div class="card-details">Garantiza modularidad estricta y aislamiento de fallos.</div>
+        </div>
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent);">02. El Emisor de Ensamblador (Code Generator)</span><span class="expand-hint">[+]</span></div>
+          <p>Recorre la lista de cuádruplos optimizados y emite instrucciones de texto en formato '.s'.</p>
+          <div class="card-details">Escribe la directiva de sección de texto ('.text'), exportación global ('.globl main') y los marcos de función.</div>
+        </div>
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent);">03. Sección de Datos (.data y .rodata)</span><span class="expand-hint">[+]</span></div>
+          <p>Emite literales de cadenas y constantes globales: '.section .rodata', '.string "Resultado: %d\n"'.</p>
+          <div class="card-details">Permite enlazar cadenas de texto usadas por 'printf' o funciones del sistema.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lámina 5: arquitectura de memoria -->
+    <section class="slide">
+      <h2>Arquitectura de memoria y estructuras de datos: Estructura del Archivo Ensamblador Emitido (.s)</h2>
+      <p class="lead">Formato estándar para el ensamblador GNU:</p>
+      <div class="grid-2">
+        
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent-silver);">Encabezado de Sección</span><span class="expand-hint">[+]</span></div>
+          <p>'.text', '.globl main', '.type main, @function'.</p>
+          <div class="card-details">Indica al linker que 'main' es el punto de entrada ejecutable del programa.</div>
+        </div>
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent-silver);">Directivas de Tamaño y Depuración</span><span class="expand-hint">[+]</span></div>
+          <p>'.size main, .-main'.</p>
+          <div class="card-details">Informa al sistema operativo el tamaño exacto del bloque de código binario generado.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lámina 6: casos borde -->
+    <section class="slide">
+      <h2>Antipatrones en la Integración del Pipeline</h2>
+      <p class="lead">Puntos críticos de falla que debes proteger en tu código y auditar en las respuestas del LLM:</p>
+      <div class="card static" style="padding: 22px;">
+        <ul style="padding-left: 20px; line-height: 1.9;">
+          <li>Emitir código ensamblador cuando el analizador semántico registró errores fatales previos.</li><li>Falta de exportación global ('.globl main') causando errores de símbolo indefinido al enlazar.</li><li>Colisión de nombres de variables globales con identificadores de bibliotecas C estándar.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Lámina 7: lo que vas a construir hoy -->
+    <section class="slide">
+      <h2>Lo que vas a construir hoy</h2>
+      <p class="lead">Recibes el nombre de una función y el valor entero que debe devolver; escribes en el buffer un ensamblador x86-64 completo con sección, símbolo global, prólogo, el valor en %rax y epílogo.</p>
+      <div class="grid-lab">
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">Entregable</span></div>
+          <p style="margin-bottom: 10px;">tu implementación de emitir_funcion() en artesano_sesion37_c.c, el harness en verde y la bitácora en auditorias/auditoria_sesion37.md</p>
+          <div class="card-header" style="margin-top: 6px;"><span style="color: var(--accent-silver);">Reglas del reto</span></div>
+          <ul><li>La salida empieza en .text y debe contener .globl &lt;nombre&gt;, &lt;nombre&gt;:, pushq %rbp, movq %rsp, %rbp, movq $&lt;retorno&gt;, %rax, leave y ret.</li><li>Cada pieza va en su propia línea terminada en salto de línea.</li><li>Si falta espacio en el buffer o algún puntero es NULL, no se escribe nada y se devuelve -1.</li></ul>
+          <div class="card-header" style="margin-top: 8px;"><span style="color: var(--accent-green);">Se acepta cuando</span></div>
+          <ul><li>El buffer contiene .text, .globl &lt;nombre&gt; y la etiqueta &lt;nombre&gt;: antes del prólogo.</li><li>El cuerpo carga el retorno en %rax y el epílogo usa leave y ret.</li><li>Los seis casos del harness salen OK y el programa termina con código de salida 0.</li></ul>
+        </div>
+        <div class="terminal">
+          <div class="terminal-bar">salida esperada del harness — sesión 37</div>
+          <pre>=== AUDITORIA SESION 37 - Conexion de Frontend, TAC y Backend ===
+Caso                               esperado:              obtenido:              resultado
+[ 1] emitir_funcion("main", 7)          esperado: 0            obtenido: 0            OK
+[ 2] salida .globl main                 esperado: 1            obtenido: 1            OK
+[ 3] salida pushq %rbp                  esperado: 1            obtenido: 1            OK
+[ 4] salida movq $7, %rax               esperado: 1            obtenido: 1            OK
+[ 5] emitir_funcion(NULL)               esperado: -1           obtenido: -1           OK
+[ 6] buffer de 16 bytes                 esperado: -1           obtenido: -1           OK
+
+RESULTADO: 6/6 pruebas superadas
+TODO EN VERDE. Documenta tu auditoria en auditorias/auditoria_sesion37.md</pre>
+        </div>
+      </div>
+      <div class="interactive-box">
+        <strong>Mientras no implementes, esta salida será roja:</strong> el harness imprime <code>FALLA</code> en cada caso pendiente y termina con código de salida 1. No hay «verde» gratis.
+      </div>
+    </section>
+
+    <!-- Lámina 8: dinámica y entrega -->
+    <section class="slide">
+      <h2>Dinámica de la clase y protocolo de entrega</h2>
+      <div class="grid-2">
+        <div class="card static">
+          <div class="card-header"><span>Estructura de la clase (60 min)</span></div>
+          <ul>
+            <li><strong>00–20 min:</strong> Conceptos, teoría e invariantes.</li>
+            <li><strong>20–35 min:</strong> Fase 1: El Artesano (código manual, sin IA).</li>
+            <li><strong>35–45 min:</strong> Fase 2: El Científico (prompt C-R-E-O).</li>
+            <li><strong>45–55 min:</strong> Fase 3: El Auditor (harness en verde).</li>
+            <li><strong>55–60 min:</strong> Sincronización y commit en GitHub.</li>
+          </ul>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span>Evidencia evaluada</span></div>
+          <p>Tu archivo <code>auditorias/auditoria_sesion37.md</code> debe contener la matriz C-R-E-O y el reporte crítico.</p>
+          <p style="margin-top: 8px;">Adjunta también la salida del harness: es la prueba de que tu implementación pasó los 6 casos.</p>
+          <div class="card-details" style="max-height: none; opacity: 1; border-top: none; margin-top: 10px; padding-top: 0;">
+            Cada entrega diaria acumula para el 40% de laboratorios y alimenta tu Proyecto Integrador.
+          </div>
+        </div>
+      </div>
+      <div class="interactive-box">
+        <strong>Docente Titular:</strong> MCC. Iván Márquez Larios (<code>ijmarquezl</code>) &bull; TecNM Cancún
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="progress" id="slideIndicator">SLIDE 1 / 8</div>
+    <div class="controls">
+      <button id="prevBtn" onclick="prevSlide()" disabled>&larr; Anterior</button>
+      <button id="nextBtn" onclick="nextSlide()">Siguiente &rarr;</button>
+    </div>
+  </footer>
+
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const indicator = document.getElementById('slideIndicator');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    function updateSlides() {
+      slides.forEach((slide, index) => slide.classList.toggle('active', index === currentSlide));
+      indicator.textContent = `SLIDE ${currentSlide + 1} / ${slides.length}`;
+      prevBtn.disabled = currentSlide === 0;
+      nextBtn.disabled = currentSlide === slides.length - 1;
+    }
+    function nextSlide() { if (currentSlide < slides.length - 1) { currentSlide++; updateSlides(); } }
+    function prevSlide() { if (currentSlide > 0) { currentSlide--; updateSlides(); } }
+    function toggleCard(card) {
+      if (card.classList.contains('static')) return;
+      card.classList.toggle('expanded');
+      const hint = card.querySelector('.expand-hint');
+      if (hint) hint.textContent = card.classList.contains('expanded') ? '[-]' : '[+]';
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+      if (e.key === 'ArrowLeft') prevSlide();
+    });
+  </script>
+</body>
+</html>

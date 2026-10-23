@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sesión 32: Asignación Ingenua de Registros (Naive Allocation) | Lenguajes y Autómatas II</title>
+  <style>
+    :root {
+      --bg: #f4f8fb;
+      --card-bg: rgba(255, 255, 255, 0.88);
+      --card-bg-hover: rgba(255, 255, 255, 0.98);
+      --border: #d0dbe5;
+      --border-focus: #0969da;
+      --accent: #0969da;
+      --accent-green: #1a7f37;
+      --accent-silver: #627282;
+      --accent-orange: #d29922;
+      --text: #334155;
+      --text-bright: #0f172a;
+      --font-mono: 'Fira Code', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 12px 28px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand { font-weight: 700; color: var(--text-bright); font-size: 0.95rem; }
+    .tag {
+      background-color: #ddf4ff;
+      color: var(--accent);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      border: 1px solid #b6e3ff;
+    }
+    main { flex: 1; display: flex; position: relative; overflow: hidden; }
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: 26px 56px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(30px);
+      transition: all 0.3s ease;
+      overflow-y: auto;
+    }
+    .slide.active { opacity: 1; visibility: visible; transform: translateX(0); }
+    h1 { font-size: 2rem; color: var(--text-bright); margin-bottom: 10px; }
+    h2 { font-size: 1.45rem; color: var(--text-bright); margin-bottom: 14px; }
+    p.lead { font-size: 1.02rem; line-height: 1.5; max-width: 1000px; margin-bottom: 16px; color: #475569; }
+    .pregunta {
+      font-size: 1.2rem;
+      line-height: 1.45;
+      color: var(--text-bright);
+      font-weight: 600;
+      border-left: 4px solid var(--accent);
+      padding: 8px 0 8px 16px;
+      margin-bottom: 18px;
+      max-width: 980px;
+    }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .grid-lab { display: grid; grid-template-columns: 0.82fr 1.18fr; gap: 16px; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .card:hover { background: var(--card-bg-hover); border-color: var(--border-focus); transform: translateY(-2px); }
+    .card.static { cursor: default; }
+    .card.static:hover { background: var(--card-bg); border-color: var(--border); transform: none; }
+    .card.expanded { border-color: var(--accent); background: #ffffff; }
+    .card-header { font-weight: 600; color: var(--text-bright); margin-bottom: 8px; display: flex; justify-content: space-between; }
+    .expand-hint { font-size: 0.75rem; color: var(--accent); font-family: var(--font-mono); }
+    .card p, .card li { font-size: 0.86rem; line-height: 1.45; color: var(--text); }
+    .card ul { padding-left: 18px; }
+    .card li { margin-bottom: 4px; }
+    .card-details { max-height: 0; overflow: hidden; opacity: 0; transition: all 0.3s ease; font-size: 0.8rem; color: #475569; }
+    .card.expanded .card-details { max-height: 260px; opacity: 1; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+    .analogia {
+      margin-top: 10px;
+      padding-left: 10px;
+      border-left: 3px solid var(--accent-orange);
+      font-size: 0.82rem !important;
+      color: #475569 !important;
+    }
+    .interactive-box {
+      margin-top: 16px;
+      padding: 13px 18px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 6px;
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+    .interactive-box code, .card code, li code, p code {
+      background: #eef2f7;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 0.86em;
+    }
+    .timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 4px; }
+    .tl-item { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; background: #ffffff; }
+    .tl-item.current { border-color: var(--accent); box-shadow: 0 0 0 2px #ddf4ff; }
+    .tl-item.done { opacity: 0.6; }
+    .tl-unit { font-size: 0.68rem; font-family: var(--font-mono); color: var(--accent-silver); }
+    .tl-title { font-size: 0.8rem; font-weight: 600; color: var(--text-bright); margin: 3px 0; line-height: 1.25; }
+    .tl-hito { font-size: 0.68rem; color: var(--accent-orange); font-family: var(--font-mono); }
+    .terminal { align-self: start; background: #0d1117; border: 1px solid #30363d; border-radius: 10px; overflow: hidden; }
+    .terminal-bar { background: #161b22; color: #8b949e; font-family: var(--font-mono); font-size: 0.68rem; padding: 6px 12px; border-bottom: 1px solid #30363d; }
+    .terminal pre { margin: 0; padding: 12px 14px; color: #7ee787; font-family: var(--font-mono); font-size: 0.62rem; line-height: 1.45; white-space: pre; overflow-x: auto; }
+    footer {
+      padding: 12px 28px;
+      background: rgba(255, 255, 255, 0.85);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .progress { font-size: 0.85rem; font-family: var(--font-mono); color: var(--accent); font-weight: 600; }
+    .controls { display: flex; gap: 10px; }
+    button {
+      background: #ffffff;
+      color: var(--text-bright);
+      border: 1px solid var(--border);
+      padding: 7px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { background: #f1f5f9; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">TecNM Cancún &bull; SCD-1016</div>
+    <div class="tag">SESIÓN 32 / 40 &bull; Asignación Ingenua de Registros (Naive Allocation)</div>
+  </header>
+
+  <main>
+    <!-- Lámina 1: de qué trata la sesión -->
+    <section class="slide active">
+      <div class="tag" style="width: fit-content; margin-bottom: 10px;">UNIDAD 4: CÓDIGO OBJETO Y BACKEND</div>
+      <h1>Asignación Ingenua de Registros (Naive Allocation)</h1>
+      <p class="pregunta">¿Dónde vive cada temporal mientras el backend lo está usando?</p>
+      <div class="grid-2">
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">Objetivo de hoy</span></div>
+          <p>Asignar cada temporal a una ranura fija de la pila y elegir los registros de trabajo con los que el código generado carga, opera y almacena.</p>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent-green);">Al terminar tendrás</span></div>
+          <p>Un mapa de temporales a desplazamientos de pila y una tabla de registros de trabajo, implementados y verificados caso por caso.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lámina 2: conceptos básicos antes de los tecnicismos -->
+    <section class="slide">
+      <h2>Antes de los tecnicismos: los conceptos básicos</h2>
+      <p class="lead">Si te quedas con estas ideas, el resto de la sesión se entiende solo.</p>
+      <div class="grid-2">
+        
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">01. Temporal</span></div>
+          <p>Un valor intermedio que el compilador inventa (t0, t1, ...) y que no existe en el programa fuente.</p>
+          <p class="analogia"><strong>Analogía:</strong> Como el papel de borrador donde anotas un resultado parcial antes de pasarlo en limpio.</p>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">02. Ranura de pila</span></div>
+          <p>Un hueco de 8 bytes dentro del marco de la función, identificado por un desplazamiento negativo desde %rbp.</p>
+          <p class="analogia"><strong>Analogía:</strong> Como el casillero numerado de una estación: cada temporal tiene el suyo y no se mezclan.</p>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">03. Registro de trabajo</span></div>
+          <p>Un registro reservado por el generador para realizar la operación del momento, sin importar qué variable representa.</p>
+          <p class="analogia"><strong>Analogía:</strong> Como el martillo de un carpintero: no pertenece a ninguna pieza, sirve para todas.</p>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">04. Patrón load-op-store</span></div>
+          <p>Cargar un operando a un registro, aplicar la operación y guardar el resultado en su ranura.</p>
+          <p class="analogia"><strong>Analogía:</strong> Como sacar una herramienta del cajón, usarla y devolverla antes de abrir el siguiente cajón.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lámina 3: mapa del curso -->
+    <section class="slide">
+      <h2>¿Dónde estamos y a dónde vamos?</h2>
+      <p class="lead">El asignador ingenuo es el primer backend que funciona: da a cada temporal una dirección estable y usa un puñado de registros conocidos para operar. Entender ese mapa es requisito para optimizar registros más adelante y para depurar un archivo .s que calcula mal porque dos temporales compartieron la misma ranura.</p>
+      <div class="timeline">
+        
+        <div class="tl-item done">
+          <div class="tl-unit">Sesiones 01–10</div>
+          <div class="tl-title">Unidad 1: Análisis Semántico y AST</div>
+          <div class="tl-hito">Hito 1 · Sesión 10</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-unit">Sesiones 11–20</div>
+          <div class="tl-title">Unidad 2: Tabla de Símbolos y Ámbitos</div>
+          <div class="tl-hito">Hito 2 · Sesión 20</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-unit">Sesiones 21–30</div>
+          <div class="tl-title">Unidad 3: Código Intermedio y Optimización</div>
+          <div class="tl-hito">Hito 3 · Sesión 30</div>
+        </div>
+        <div class="tl-item current">
+          <div class="tl-unit">Sesiones 31–40</div>
+          <div class="tl-title">Unidad 4: Código Objeto y Backend</div>
+          <div class="tl-hito">Aquí estás</div>
+        </div>
+      </div>
+      <div class="interactive-box">
+        <strong>Hoy:</strong> Un mapa de temporales a desplazamientos de pila y una tabla de registros de trabajo, implementados y verificados caso por caso.
+        <br><strong>Siguiente:</strong> Derramamiento a Memoria (Register Spilling) (sesión 33)
+      </div>
+    </section>
+
+    <!-- Lámina 4: fundamentos teóricos -->
+    <section class="slide">
+      <h2>00–20 min: Fundamentos teóricos — Estrategia Cargar-Computar-Almacenar (Load-Op-Store)</h2>
+      <p class="lead">El asignador ingenuo mapea cada temporal a la memoria de pila y utiliza un conjunto mínimo de registros como intermediarios.</p>
+      <div class="grid-3">
+        
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent);">01. Patrón Load-Op-Store</span><span class="expand-hint">[+]</span></div>
+          <p>Para cada cuádruplo 't2 = t0 + t1': carga t0 en RAX, t1 en RBX, suma y almacena RAX en la dirección de t2.</p>
+          <div class="card-details">Estrategia robusta y sencilla de implementar que no requiere análisis de vida de variables.</div>
+        </div>
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent);">02. Registros de Trabajo Reservados</span><span class="expand-hint">[+]</span></div>
+          <p>Se reservan registros fijos (ej. RAX y RBX para aritmética, R10 y R11 para temporales).</p>
+          <div class="card-details">Evita conflictos de asignación manteniendo un pool constante para todas las operaciones.</div>
+        </div>
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent);">03. Desventaja de Rendimiento</span><span class="expand-hint">[+]</span></div>
+          <p>Genera un tráfico masivo de lecturas y escrituras en el Stack (RAM / Caché L1).</p>
+          <div class="card-details">Compensado por la simplicidad en la generación directa de código.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lámina 5: arquitectura de memoria -->
+    <section class="slide">
+      <h2>Arquitectura de memoria y estructuras de datos: Tabla de Desplazamientos del Stack Frame</h2>
+      <p class="lead">Mapeo estático de variables y temporales a offsets negativos:</p>
+      <div class="grid-2">
+        
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent-silver);">Offset de Temporales</span><span class="expand-hint">[+]</span></div>
+          <p>Cada '_t0, _t1...' recibe una ranura fija de 8 bytes en la pila: '-8(%rbp), -16(%rbp)...'.</p>
+          <div class="card-details">Calculado consecutivamente durante la fase de análisis de cuádruplos.</div>
+        </div>
+        <div class="card" onclick="toggleCard(this)">
+          <div class="card-header"><span style="color: var(--accent-silver);">Alineación del Marco</span><span class="expand-hint">[+]</span></div>
+          <p>El tamaño total del marco de pila debe redondearse al múltiplo superior de 16 bytes: 'subq $32, %rsp'.</p>
+          <div class="card-details">Obligatorio según la convención ABI x86-64.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lámina 6: casos borde -->
+    <section class="slide">
+      <h2>Puntos de Falla en Asignación Ingenua</h2>
+      <p class="lead">Puntos críticos de falla que debes proteger en tu código y auditar en las respuestas del LLM:</p>
+      <div class="card static" style="padding: 22px;">
+        <ul style="padding-left: 20px; line-height: 1.9;">
+          <li>Superposición de offsets entre variables locales del usuario y temporales generados por el compilador.</li><li>Olvidar guardar el resultado del registro de vuelta a la memoria tras la operación.</li><li>Agotar el espacio de direccionamiento de 32 bits en funciones con miles de temporales.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Lámina 7: lo que vas a construir hoy -->
+    <section class="slide">
+      <h2>Lo que vas a construir hoy</h2>
+      <p class="lead">Recibes el nombre de un temporal (t0, t1, ...) o el índice de un registro de trabajo, y devuelves su desplazamiento en el marco o el nombre AT&amp;T del registro que le toca.</p>
+      <div class="grid-lab">
+        <div class="card static">
+          <div class="card-header"><span style="color: var(--accent);">Entregable</span></div>
+          <p style="margin-bottom: 10px;">tu implementación de slot_temporal() y registro_de_trabajo() en artesano_sesion32_c.c, el harness en verde y la bitácora en auditorias/auditoria_sesion32.md</p>
+          <div class="card-header" style="margin-top: 6px;"><span style="color: var(--accent-silver);">Reglas del reto</span></div>
+          <ul><li>Cada temporal tN ocupa 8 bytes: su desplazamiento es -8 * (N + 1).</li><li>Los registros de trabajo son %rax, %rbx, %r10 y %r11, en ese orden; del índice 4 en adelante no hay registro.</li><li>Un nombre que no sea t seguido de dígitos se considera inválido y vale cero.</li></ul>
+          <div class="card-header" style="margin-top: 8px;"><span style="color: var(--accent-green);">Se acepta cuando</span></div>
+          <ul><li>slot_temporal acierta el desplazamiento de cada temporal y rechaza nombres mal formados con cero.</li><li>registro_de_trabajo respeta el orden del pool y responde ninguno cuando el índice se sale.</li><li>Los seis casos del harness salen OK y el programa termina con código de salida 0.</li></ul>
+        </div>
+        <div class="terminal">
+          <div class="terminal-bar">salida esperada del harness — sesión 32</div>
+          <pre>=== AUDITORIA SESION 32 - Asignador directo de temporales a registros ===
+Caso                               esperado:              obtenido:              resultado
+[ 1] slot_temporal("t0")                esperado: -8           obtenido: -8           OK
+[ 2] slot_temporal("t7")                esperado: -64          obtenido: -64          OK
+[ 3] slot_temporal("x")                 esperado: 0            obtenido: 0            OK
+[ 4] registro_de_trabajo(0)             esperado: %rax         obtenido: %rax         OK
+[ 5] registro_de_trabajo(3)             esperado: %r11         obtenido: %r11         OK
+[ 6] registro_de_trabajo(4)             esperado: ninguno      obtenido: ninguno      OK
+
+RESULTADO: 6/6 pruebas superadas
+TODO EN VERDE. Documenta tu auditoria en auditorias/auditoria_sesion32.md</pre>
+        </div>
+      </div>
+      <div class="interactive-box">
+        <strong>Mientras no implementes, esta salida será roja:</strong> el harness imprime <code>FALLA</code> en cada caso pendiente y termina con código de salida 1. No hay «verde» gratis.
+      </div>
+    </section>
+
+    <!-- Lámina 8: dinámica y entrega -->
+    <section class="slide">
+      <h2>Dinámica de la clase y protocolo de entrega</h2>
+      <div class="grid-2">
+        <div class="card static">
+          <div class="card-header"><span>Estructura de la clase (60 min)</span></div>
+          <ul>
+            <li><strong>00–20 min:</strong> Conceptos, teoría e invariantes.</li>
+            <li><strong>20–35 min:</strong> Fase 1: El Artesano (código manual, sin IA).</li>
+            <li><strong>35–45 min:</strong> Fase 2: El Científico (prompt C-R-E-O).</li>
+            <li><strong>45–55 min:</strong> Fase 3: El Auditor (harness en verde).</li>
+            <li><strong>55–60 min:</strong> Sincronización y commit en GitHub.</li>
+          </ul>
+        </div>
+        <div class="card static">
+          <div class="card-header"><span>Evidencia evaluada</span></div>
+          <p>Tu archivo <code>auditorias/auditoria_sesion32.md</code> debe contener la matriz C-R-E-O y el reporte crítico.</p>
+          <p style="margin-top: 8px;">Adjunta también la salida del harness: es la prueba de que tu implementación pasó los 6 casos.</p>
+          <div class="card-details" style="max-height: none; opacity: 1; border-top: none; margin-top: 10px; padding-top: 0;">
+            Cada entrega diaria acumula para el 40% de laboratorios y alimenta tu Proyecto Integrador.
+          </div>
+        </div>
+      </div>
+      <div class="interactive-box">
+        <strong>Docente Titular:</strong> MCC. Iván Márquez Larios (<code>ijmarquezl</code>) &bull; TecNM Cancún
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="progress" id="slideIndicator">SLIDE 1 / 8</div>
+    <div class="controls">
+      <button id="prevBtn" onclick="prevSlide()" disabled>&larr; Anterior</button>
+      <button id="nextBtn" onclick="nextSlide()">Siguiente &rarr;</button>
+    </div>
+  </footer>
+
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const indicator = document.getElementById('slideIndicator');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    function updateSlides() {
+      slides.forEach((slide, index) => slide.classList.toggle('active', index === currentSlide));
+      indicator.textContent = `SLIDE ${currentSlide + 1} / ${slides.length}`;
+      prevBtn.disabled = currentSlide === 0;
+      nextBtn.disabled = currentSlide === slides.length - 1;
+    }
+    function nextSlide() { if (currentSlide < slides.length - 1) { currentSlide++; updateSlides(); } }
+    function prevSlide() { if (currentSlide > 0) { currentSlide--; updateSlides(); } }
+    function toggleCard(card) {
+      if (card.classList.contains('static')) return;
+      card.classList.toggle('expanded');
+      const hint = card.querySelector('.expand-hint');
+      if (hint) hint.textContent = card.classList.contains('expanded') ? '[-]' : '[+]';
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+      if (e.key === 'ArrowLeft') prevSlide();
+    });
+  </script>
+</body>
+</html>
